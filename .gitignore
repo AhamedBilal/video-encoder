@@ -26,6 +26,9 @@ package-lock.json
 *.log
 *.gz
 
+tmp
+out
+upload
 
 # Coveralls
 coverage
