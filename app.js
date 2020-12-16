@@ -109,7 +109,8 @@ app.get('/smil', (req, res) => {
                 audioBitrate: 44100,
                 videoBitrate: 350000,
                 width: 640,
-                height: 320
+                height: 320,
+                type: 'video'
             },
             {
                 systemLanguage: 'eng',
@@ -117,20 +118,25 @@ app.get('/smil', (req, res) => {
                 audioBitrate: 44100,
                 videoBitrate: 350000,
                 width: 640,
-                height: 320
+                height: 320,
+                type: 'video'
             }
         ],
         title: 'test smil post'
     };
+    ffmpeg.ffprobe(__dirname + '\\out\\mylivewallpapers.com-Kyojuro-Rengoku-Fire_480p.mp4', function(err, metadata) {
+        console.dir(metadata);
+        res.json(metadata);
+    });
 
-    axios.post('http://localhost:8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/vod/smilfiles', data)
-        .then(function (response) {
-            console.log(response);
-            res.json(response);
-        })
-        .catch(function (error) {
-            res.json(error);
-        });
+    // axios.post('http://localhost:8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/vod/smilfiles', data)
+    //     .then(function (response) {
+    //         console.log(response);
+    //         return res.json(response.body);
+    //     })
+    //     .catch(function (error) {
+    //         return res.json(error);
+    //     });
 });
 
 
