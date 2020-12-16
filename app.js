@@ -46,43 +46,44 @@ app.post('/convert', (req, res, next) => {
             return;
         }
         const oldPath = files.file.path;
+        const filename = 'video'+Date.now();
         const newPath = path.join(__dirname, 'tmp') + '\\' + files.file.name;
         const rawData = fs.readFileSync(oldPath)
-        const filename = path.join(__dirname, 'out') + '\\' + files.file.name.replace(/\.(mkv|avi|mp4|flv|mov)$/g, '');
+        const filepath = path.join(__dirname, 'out') + '\\' + filename;
 
         fs.writeFile(newPath, rawData, function (err) {
             if (err) console.log(err)
             ffmpeg(__dirname + '\\tmp\\' + files.file.name)
-                .output(filename + '_720p.mp4')
-                .videoCodec('libx265')
+                .output(filepath + '_720p.mp4')
+                .videoCodec('libx264')
                 .audioCodec('libmp3lame')
                 .audioBitrate(128)
                 .size('?x720')
                 .format('mp4')
 
-                .output(filename + '_480p.mp4')
-                .videoCodec('libx265')
+                .output(filepath + '_480p.mp4')
+                .videoCodec('libx264')
                 .audioCodec('libmp3lame')
                 .audioBitrate(128)
                 .size('?x480')
                 .format('mp4')
 
-                .output(filename + '_360p.mp4')
-                .videoCodec('libx265')
+                .output(filepath + '_360p.mp4')
+                .videoCodec('libx264')
                 .audioCodec('libmp3lame')
                 .audioBitrate(64)
                 .size('?x360')
                 .format('mp4')
 
-                .output(filename + '_240p.mp4')
-                .videoCodec('libx265')
+                .output(filepath + '_240p.mp4')
+                .videoCodec('libx264')
                 .audioCodec('libmp3lame')
                 .audioBitrate(64)
                 .size('?x240')
                 .format('mp4')
 
-                .output(filename + '_144p.mp4')
-                .videoCodec('libx265')
+                .output(filepath + '_144p.mp4')
+                .videoCodec('libx264')
                 .audioCodec('libmp3lame')
                 .audioBitrate(64)
                 .size('?x144')
@@ -103,33 +104,89 @@ app.post('/convert', (req, res, next) => {
                 })
                 .on('end', function (stdout, stderr) {
                     console.log('Transcoding succeeded !');
-                    fs.unlinkSync(path.join(__dirname, 'tmp') + '/' + files.file.name);
-                    ffmpeg(filename + '_720p.mp4')
-                        .input(filename + '_480p.mp4')
-                        .input(filename + '_360p.mp4')
-                        .input(filename + '_240p.mp4')
-                        .input(filename + '_144p.mp4')
-                        .ffprobe(0, function (err, data) {
-                            console.log('file1 metadata:');
-                            console.dir(data);
-                        })
-                        .ffprobe(1, function (err, data) {
-                            console.log('file2 metadata:');
-                            console.dir(data);
-                        })
-                        .ffprobe(2, function (err, data) {
-                            console.log('file3 metadata:');
-                            console.dir(data);
-                        })
-                        .ffprobe(3, function (err, data) {
-                            console.log('file4 metadata:');
-                            console.dir(data);
-                        })
-                        .ffprobe(4, function (err, data) {
-                            console.log('file5 metadata:');
-                            console.dir(data);
+
+                    const temp = {
+                        systemLanguage: 'eng',
+                        src: 'sample.mp4',
+                        audioBitrate: 44100,
+                        videoBitrate: 350000,
+                        width: 640,
+                        height: 320,
+                        type: 'video'
+                    };
+                    const mainData = {
+                        name: filename,
+                        serverName: '_defaultServer_',
+                        smilStreams: [],
+                        title: 'SMIL for ' + filename +'.mp4'
+                    };
+
+                    fs.unlinkSync(newPath);
+                    ffmpeg(filepath + '_720p.mp4')
+                        .ffprobe(function (err, data) {
+                            mainData.smilStreams.push({
+                                ...temp,
+                                width: data.streams[0].width,
+                                height: data.streams[0].height,
+                                audioBitrate: data.streams[1].bit_rate,
+                                videoBitrate: data.streams[0].bit_rate,
+                                src: filename + '_720p.mp4'
+                            });
+                            ffmpeg(filepath + '_480p.mp4')
+                                .ffprobe(function (err, data) {
+                                    mainData.smilStreams.push({
+                                        ...temp,
+                                        width: data.streams[0].width,
+                                        height: data.streams[0].height,
+                                        audioBitrate: data.streams[1].bit_rate,
+                                        videoBitrate: data.streams[0].bit_rate,
+                                        src: filename + '_480p.mp4'
+                                    });
+                                    ffmpeg(filepath + '_360p.mp4')
+                                        .ffprobe(function (err, data) {
+                                            mainData.smilStreams.push({
+                                                ...temp,
+                                                width: data.streams[0].width,
+                                                height: data.streams[0].height,
+                                                audioBitrate: data.streams[1].bit_rate,
+                                                videoBitrate: data.streams[0].bit_rate,
+                                                src: filename + '_360p.mp4'
+                                            });
+                                            ffmpeg(filepath + '_240p.mp4')
+                                                .ffprobe(function (err, data) {
+                                                    mainData.smilStreams.push({
+                                                        ...temp,
+                                                        width: data.streams[0].width,
+                                                        height: data.streams[0].height,
+                                                        audioBitrate: data.streams[1].bit_rate,
+                                                        videoBitrate: data.streams[0].bit_rate,
+                                                        src: filename + '_240p.mp4'
+                                                    });
+                                                    ffmpeg(filepath + '_144p.mp4')
+                                                        .ffprobe(function (err, data) {
+                                                            mainData.smilStreams.push({
+                                                                ...temp,
+                                                                width: data.streams[0].width,
+                                                                height: data.streams[0].height,
+                                                                audioBitrate: data.streams[1].bit_rate,
+                                                                videoBitrate: data.streams[0].bit_rate,
+                                                                src: filename + '_144p.mp4'
+                                                            });
+                                                            axios.post('http://localhost:8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/vod/smilfiles', mainData)
+                                                                .then(function (response) {
+                                                                    console.log(response.body);
+                                                                    res.json({url: `http://192.168.1.103:1935/vod/smil:${filename}.smil/playlist.m3u8`});
+                                                                })
+                                                                .catch(function (error) {
+                                                                    res.json(mainData);
+                                                                });
+                                                            // res.json(mainData);
+                                                        });
+                                                });
+                                        });
+                                });
                         });
-                    res.send("Successfully uploaded");
+
                 })
                 .run();
         });
@@ -138,44 +195,87 @@ app.post('/convert', (req, res, next) => {
 })
 
 app.get('/smil', (req, res) => {
-
-    const data = {
-        name: 'post_smil',
+    const temp = {
+        systemLanguage: 'eng',
+        src: 'sample.mp4',
+        audioBitrate: 44100,
+        videoBitrate: 350000,
+        width: 640,
+        height: 320,
+        type: 'video'
+    };
+    const mainData = {
+        name: 'dynamic_smil',
         serverName: '_defaultServer_',
-        smilStreams: [
-            {
-                systemLanguage: 'eng',
-                src: 'sample.mp4',
-                audioBitrate: 44100,
-                videoBitrate: 350000,
-                width: 640,
-                height: 320,
-                type: 'video'
-            },
-            {
-                systemLanguage: 'eng',
-                src: 'sample2.mp4',
-                audioBitrate: 44100,
-                videoBitrate: 350000,
-                width: 640,
-                height: 320,
-                type: 'video'
-            }
-        ],
+        smilStreams: [],
         title: 'test smil post'
     };
-    ffmpeg.ffprobe(__dirname + '\\out\\mylivewallpapers.com-Kyojuro-Rengoku-Fire_480p.mp4', function (err, metadata) {
-        console.dir(metadata);
-        res.json(metadata);
-    });
-
-    // axios.post('http://localhost:8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/vod/smilfiles', data)
-    //     .then(function (response) {
-    //         console.log(response);
-    //         return res.json(response.body);
-    //     })
-    //     .catch(function (error) {
-    //         return res.json(error);
+    const filepath = __dirname + '\\out\\Fire';
+    const filename = 'mp4:Fire';
+    const meta = [];
+    // ffmpeg(filepath + '_720p.mp4')
+    //     .ffprobe(function (err, data) {
+    //         mainData.smilStreams.push({
+    //             ...temp,
+    //             width: data.streams[0].width,
+    //             height: data.streams[0].height,
+    //             audioBitrate: data.streams[1].bit_rate,
+    //             videoBitrate: data.streams[0].bit_rate,
+    //             src: filename + '_720p.mp4'
+    //         });
+    //         ffmpeg(filepath + '_480p.mp4')
+    //             .ffprobe(function (err, data) {
+    //                 mainData.smilStreams.push({
+    //                     ...temp,
+    //                     width: data.streams[0].width,
+    //                     height: data.streams[0].height,
+    //                     audioBitrate: data.streams[1].bit_rate,
+    //                     videoBitrate: data.streams[0].bit_rate,
+    //                     src: filename + '_480p.mp4'
+    //                 });
+    //                 ffmpeg(filepath + '_360p.mp4')
+    //                     .ffprobe(function (err, data) {
+    //                         mainData.smilStreams.push({
+    //                             ...temp,
+    //                             width: data.streams[0].width,
+    //                             height: data.streams[0].height,
+    //                             audioBitrate: data.streams[1].bit_rate,
+    //                             videoBitrate: data.streams[0].bit_rate,
+    //                             src: filename + '_360p.mp4'
+    //                         });
+    //                         ffmpeg(filepath + '_240p.mp4')
+    //                             .ffprobe(function (err, data) {
+    //                                 mainData.smilStreams.push({
+    //                                     ...temp,
+    //                                     width: data.streams[0].width,
+    //                                     height: data.streams[0].height,
+    //                                     audioBitrate: data.streams[1].bit_rate,
+    //                                     videoBitrate: data.streams[0].bit_rate,
+    //                                     src: filename + '_240p.mp4'
+    //                                 });
+    //                                 ffmpeg(filepath + '_144p.mp4')
+    //                                     .ffprobe(function (err, data) {
+    //                                         mainData.smilStreams.push({
+    //                                             ...temp,
+    //                                             width: data.streams[0].width,
+    //                                             height: data.streams[0].height,
+    //                                             audioBitrate: data.streams[1].bit_rate,
+    //                                             videoBitrate: data.streams[0].bit_rate,
+    //                                             src: filename + '_144p.mp4'
+    //                                         });
+    //                                         axios.post('http://localhost:8087/v2/servers/_defaultServer_/vhosts/_defaultVHost_/applications/vod/smilfiles', mainData)
+    //                                             .then(function (response) {
+    //                                                 console.log(response);
+    //                                                 res.json(mainData);
+    //                                             })
+    //                                             .catch(function (error) {
+    //                                                 res.json(mainData);
+    //                                             });
+    //                                         // res.json(mainData);
+    //                                     });
+    //                             });
+    //                     });
+    //             });
     //     });
 });
 
