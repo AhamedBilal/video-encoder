@@ -35,7 +35,7 @@ app.post('/convert', (req, res, next) => {
     const form = formidable({multiples: true});
     form.maxFileSize = 2000 * 1024 * 1024;
     form.on('progress', (bytesReceived, bytesExpected) => {
-        console.log(bytesReceived * 100 / bytesExpected)
+        console.log(Math.floor(bytesReceived * 100 / bytesExpected));
     });
 
     form.parse(req, (err, fields, files) => {
@@ -48,29 +48,44 @@ app.post('/convert', (req, res, next) => {
         const oldPath = files.file.path;
         const newPath = path.join(__dirname, 'tmp') + '\\' + files.file.name;
         const rawData = fs.readFileSync(oldPath)
+        const filename = path.join(__dirname, 'out') + '\\' + files.file.name.replace(/\.(mkv|avi|mp4|flv|mov)$/g, '');
 
         fs.writeFile(newPath, rawData, function (err) {
             if (err) console.log(err)
             ffmpeg(__dirname + '\\tmp\\' + files.file.name)
-                .output(path.join(__dirname, 'out') + '\\' + files.file.name.replace(/\.(mkv|avi|mp4|flv|mov)$/g, '') + '_780p.mp4')
+                .output(filename + '_720p.mp4')
                 .videoCodec('libx265')
                 .audioCodec('libmp3lame')
                 .audioBitrate(128)
-                .size('?x780')
+                .size('?x720')
                 .format('mp4')
 
-                .output(path.join(__dirname, 'out') + '\\' + files.file.name.replace(/\.(mkv|avi|mp4|flv|mov)$/g, '') + '_480p.mp4')
+                .output(filename + '_480p.mp4')
                 .videoCodec('libx265')
                 .audioCodec('libmp3lame')
                 .audioBitrate(128)
                 .size('?x480')
                 .format('mp4')
 
-                .output(path.join(__dirname, 'out') + '\\' + files.file.name.replace(/\.(mkv|avi|mp4|flv|mov)$/g, '') + '_360p.mp4')
+                .output(filename + '_360p.mp4')
                 .videoCodec('libx265')
                 .audioCodec('libmp3lame')
                 .audioBitrate(64)
                 .size('?x360')
+                .format('mp4')
+
+                .output(filename + '_240p.mp4')
+                .videoCodec('libx265')
+                .audioCodec('libmp3lame')
+                .audioBitrate(64)
+                .size('?x240')
+                .format('mp4')
+
+                .output(filename + '_144p.mp4')
+                .videoCodec('libx265')
+                .audioCodec('libmp3lame')
+                .audioBitrate(64)
+                .size('?x144')
                 .format('mp4')
 
                 .on('start', function (commandLine) {
@@ -81,7 +96,7 @@ app.post('/convert', (req, res, next) => {
                         'with ' + data.video_details + ' video');
                 })
                 .on('progress', function (progress) {
-                    console.log(progress.percent);
+                    console.log(Math.floor(progress.percent));
                 })
                 .on('error', function (error) {
                     return res.send(error);
@@ -89,6 +104,31 @@ app.post('/convert', (req, res, next) => {
                 .on('end', function (stdout, stderr) {
                     console.log('Transcoding succeeded !');
                     fs.unlinkSync(path.join(__dirname, 'tmp') + '/' + files.file.name);
+                    ffmpeg(filename + '_720p.mp4')
+                        .input(filename + '_480p.mp4')
+                        .input(filename + '_360p.mp4')
+                        .input(filename + '_240p.mp4')
+                        .input(filename + '_144p.mp4')
+                        .ffprobe(0, function (err, data) {
+                            console.log('file1 metadata:');
+                            console.dir(data);
+                        })
+                        .ffprobe(1, function (err, data) {
+                            console.log('file2 metadata:');
+                            console.dir(data);
+                        })
+                        .ffprobe(2, function (err, data) {
+                            console.log('file3 metadata:');
+                            console.dir(data);
+                        })
+                        .ffprobe(3, function (err, data) {
+                            console.log('file4 metadata:');
+                            console.dir(data);
+                        })
+                        .ffprobe(4, function (err, data) {
+                            console.log('file5 metadata:');
+                            console.dir(data);
+                        });
                     res.send("Successfully uploaded");
                 })
                 .run();
@@ -124,7 +164,7 @@ app.get('/smil', (req, res) => {
         ],
         title: 'test smil post'
     };
-    ffmpeg.ffprobe(__dirname + '\\out\\mylivewallpapers.com-Kyojuro-Rengoku-Fire_480p.mp4', function(err, metadata) {
+    ffmpeg.ffprobe(__dirname + '\\out\\mylivewallpapers.com-Kyojuro-Rengoku-Fire_480p.mp4', function (err, metadata) {
         console.dir(metadata);
         res.json(metadata);
     });
