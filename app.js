@@ -6,8 +6,8 @@ var logger = require('morgan');
 const formidable = require('formidable');
 const ffmpeg = require("fluent-ffmpeg");
 const fs = require("fs");
-
 const axios = require('axios');
+
 
 ffmpeg.setFfmpegPath("C:/ffmpeg/bin/ffmpeg.exe");
 ffmpeg.setFfprobePath("C:/ffmpeg/bin/ffprobe.exe");
@@ -17,6 +17,8 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var app = express();
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -28,14 +30,29 @@ app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(function(req, res, next){
+    res.io = io;
+    next();
+});
+
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
+});
+
 
 app.post('/convert', (req, res, next) => {
     const form = formidable({multiples: true});
     form.maxFileSize = 2000 * 1024 * 1024;
     form.on('progress', (bytesReceived, bytesExpected) => {
-        console.log(Math.floor(bytesReceived * 100 / bytesExpected));
+        process.stdout.write("\r" + Math.floor(bytesReceived * 100 / bytesExpected) + '%');
+        // console.log(Math.floor(bytesReceived * 100 / bytesExpected))
     });
 
     form.parse(req, (err, fields, files) => {
@@ -47,7 +64,7 @@ app.post('/convert', (req, res, next) => {
         }
 
         const oldPath = files.file.path;
-        const filename = 'video'+Date.now();
+        const filename = 'video' + Date.now();
         const newPath = path.join(__dirname, 'tmp') + '\\' + files.file.name;
         const rawData = fs.readFileSync(oldPath)
         const filepath = path.join(__dirname, 'out') + '\\' + filename;
@@ -97,15 +114,18 @@ app.post('/convert', (req, res, next) => {
                     console.log('Input is ' + data.audio_details + ' audio ' +
                         'with ' + data.video_details + ' video');
                 })
-                .on('progress', function (progress) {
-                    console.log(Math.floor(progress.percent));
+                .on('progress',  (progress) => {
+                    // console.log(Math.floor(progress.percent));
+                    process.stdout.write("\r" + Math.floor(progress.percent) + '%');
+                    // console.log(req.io);
+                    io.emit('progress', Math.floor(progress.percent));
                 })
                 .on('error', function (error) {
                     return res.send(error);
                 })
                 .on('end', function (stdout, stderr) {
+                    io.emit('progress', 100);
                     console.log('Transcoding succeeded !');
-
                     const temp = {
                         systemLanguage: 'eng',
                         src: 'sample.mp4',
@@ -119,7 +139,7 @@ app.post('/convert', (req, res, next) => {
                         name: filename,
                         serverName: '_defaultServer_',
                         smilStreams: [],
-                        title: 'SMIL for ' + filename +'.mp4'
+                        title: 'SMIL for ' + filename + '.mp4'
                     };
 
                     fs.unlinkSync(newPath);
@@ -280,7 +300,7 @@ app.get('/smil', (req, res) => {
     //     });
 });
 
-app.get('/events', async function(req, res) {
+app.get('/events', async function (req, res) {
     console.log('Got /events');
     res.set({
         'Cache-Control': 'no-cache',
@@ -317,4 +337,4 @@ app.use(function (err, req, res, next) {
     res.render('error');
 });
 
-module.exports = app;
+module.exports = {app:app, server:server};
